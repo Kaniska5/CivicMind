@@ -1,29 +1,40 @@
-# ============================================================
-# VERSION 1 — backend/main.py
-# SMELLS PRESENT:
-#   [A1] Business logic inside controller (no service layer used)
-#   [A2] Layers exist but are not respected — controller calls
-#        RAGPipeline directly, bypassing service layer
-#   [A3] Direct dependency between layers
-#   [S11] God Object — pipeline instance shared globally
-# ============================================================
+import os
+import logging
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from backend.rag.rag_pipeline import RAGPipeline  # [A2] controller → RAG directly
 
-app = FastAPI()
+from backend.rag.rag_pipeline import RAGPipeline
+from backend.services.civic_service import (
+    handle_policy_query,
+    handle_grievance,
+    handle_scheme_match,
+)
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Initialising RAGPipeline...")
+    app.state.pipeline = RAGPipeline()
+    logger.info("RAGPipeline ready")
+    yield
+    logger.info("Shutting down")
+
+
+app = FastAPI(lifespan=lifespan)
+
+origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # [S3] hardcoded wildcard
+    allow_origins=origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# [S11] Global mutable state — pipeline created at module level
-pipeline = RAGPipeline()
 
 
 # ── Request models ──────────────────────────────────────────
@@ -48,39 +59,26 @@ class SchemeRequest(BaseModel):
 # ── Endpoints ───────────────────────────────────────────────
 
 @app.post("/policy-pulse")
-def policy_pulse(req: PolicyRequest):
-    # [A1] BUSINESS LOGIC IN CONTROLLER — validation, formatting done here
-    if not req.question.strip():
-        return {"error": "Question cannot be empty"}  # [A1] validation in controller
-
-    # [A2] SKIPS SERVICE LAYER — calls RAG directly from controller
-    result = pipeline.query_policy(req.question)
-    return {"answer": result}
+async def policy_pulse(req: PolicyRequest, request: Request):
+    pipeline = request.app.state.pipeline
+    return handle_policy_query(pipeline, req.question)
 
 
 @app.post("/grievance")
-def grievance(req: GrievanceRequest):
-    # [A1] BUSINESS LOGIC IN CONTROLLER
-    if len(req.issue) < 10:  # [A1] input validation in controller
-        return {"error": "Please describe your issue in more detail"}
-
-    # [A2] SKIPS SERVICE LAYER
-    result = pipeline.query_grievance(req.issue)
-    return result
+async def grievance(req: GrievanceRequest, request: Request):
+    pipeline = request.app.state.pipeline
+    return handle_grievance(pipeline, req.issue)
 
 
 @app.post("/scheme-match")
-def scheme_match(req: SchemeRequest):
-    # [A1] PROFILE BUILDING IN CONTROLLER — belongs in service layer
+async def scheme_match(req: SchemeRequest, request: Request):
+    pipeline = request.app.state.pipeline
     profile = {
         "age": req.age,
         "gender": req.gender,
         "annual_income": req.annual_income,
         "caste_category": req.caste_category,
         "state": req.state,
-        "occupation": req.occupation
+        "occupation": req.occupation,
     }
-
-    # [A2] SKIPS SERVICE LAYER
-    result = pipeline.query_scheme_match(profile)
-    return {"schemes": result}
+    return handle_scheme_match(pipeline, profile)
