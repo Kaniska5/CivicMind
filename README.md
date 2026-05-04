@@ -18,16 +18,28 @@ that connects Indian citizens to welfare information in plain language.
 ## Project Structure
 
 ```
-civicmind/
-|
-│   ├── backend/
-│   │   ├── ingest.py
-│   │   ├── rag/
-│   │   │   └── rag_pipeline.py
-│   │   └── main.py
-│   └── knowledge_base/
-│   └── frontend/
-
+CivicMind/
+├── backend/
+│   ├── main.py                  # FastAPI app with lifespan-managed pipeline
+│   ├── ingest.py                # Document ingestion + FAISS index builder
+│   ├── rag/
+│   │   └── rag_pipeline.py      # RAG pipeline (embeddings, LLM, retrieval)
+│   ├── services/
+│   │   └── civic_service.py     # Business logic + input validation
+│   └── data/
+│       └── vector_store/        # Persisted FAISS index (auto-generated)
+├── knowledge_base/
+│   ├── central_schemes/         # Government scheme PDFs
+│   ├── legal_docs/              # RTI Act, CPGRAMS TXT files
+│   ├── state_docs/              # State-level policy PDFs
+│   └── budget/                  # Budget announcement TXTs
+├── frontend/
+│   └── src/
+│       ├── components/          # PolicyPulse, GrievanceGPT, SchemeMatch
+│       └── api/
+│           └── civicmindAPI.js  # Centralised API layer
+├── .env.example
+└── requirements.txt
 ```
 
 ---
@@ -38,18 +50,28 @@ civicmind/
 
 - Python 3.10+
 - Node.js 18+
-- A Gemini API key from [aistudio.google.com](https://aistudio.google.com)
+- A Groq API key from [console.groq.com](https://console.groq.com)
 
 ---
 
 ### Step 1 — Clone and configure
 
 ```bash
-cd civicmind
-cd civicmind
+git clone https://github.com/Kaniska5/CivicMind.git
+cd CivicMind
+```
 
-# Add your Gemini API key to .env
-# Edit .env and replace: GEMINI_API_KEY=your_gemini_api_key_here
+Create a `.env` file in the root directory:
+
+```
+GROQ_API_KEY=your_groq_api_key_here
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+Create a `frontend/.env` file:
+
+```
+VITE_API_URL=http://localhost:8000
 ```
 
 ---
@@ -64,7 +86,7 @@ pip install -r requirements.txt
 
 ### Step 3 — Add knowledge base documents
 
-Drop your PDF or TXT files into any of these folders:
+Drop your PDF or TXT files into the appropriate folders:
 
 ```
 knowledge_base/central_schemes/   ← government scheme PDFs
@@ -80,20 +102,16 @@ Sample files are already included to test with.
 ### Step 4 — Run ingestion (build FAISS index)
 
 ```bash
-# From the civicmind/ root folder
-# From the civicmind/ root folder
 python -m backend.ingest
 ```
 
 You should see:
 
 ```
-Loading from: knowledge_base/central_schemes
-  Loaded: pm_kisan.txt
-...
-Total chunks created: 12
-FAISS index saved to: backend/data/vector_store
-Ingestion complete.
+INFO - Loaded: pm_kisan.txt
+INFO - Total documents loaded: 8
+INFO - Total chunks created: 42
+INFO - FAISS index saved to: backend/data/vector_store
 ```
 
 ---
@@ -104,7 +122,7 @@ Ingestion complete.
 uvicorn backend.main:app --reload --port 8000
 ```
 
-API will be live at: [http://localhost:8000](http://localhost:8000)
+API will be live at: [http://localhost:8000](http://localhost:8000)  
 Swagger docs at: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
@@ -171,24 +189,38 @@ Frontend at: [http://localhost:5173](http://localhost:5173)
 
 ---
 
-## Running 
+## Tech Stack
 
-```bash
-cd civicmind
-pip install -r requirements.txt
-python -m backend.ingest          # build index
-uvicorn backend.main:app --reload --port 8000
-```
+| Layer           | Technology                                      |
+| --------------- | ----------------------------------------------- |
+| Frontend        | React.js (Vite) + CSS                           |
+| API             | FastAPI (Python)                                |
+| RAG Chain       | LangChain                                       |
+| Vector Store    | FAISS (local)                                   |
+| Embedding Model | HuggingFace `all-MiniLM-L6-v2` via LangChain   |
+| LLM             | Groq LLaMA 3.1 8B Instant via LangChain         |
 
 ---
 
-## Tech Stack
+## Architecture
 
-| Layer           | Technology                                  |
-| --------------- | ------------------------------------------- |
-| Frontend        | React.js (Vite) + CSS                       |
-| API             | FastAPI (Python)                            |
-| RAG Chain       | LangChain                                   |
-| Vector Store    | FAISS (local)                               |
-| Embedding Model | Gemini `models/embedding-001` via LangChain |
-| LLM             | Gemini 1.5 Pro via LangChain                |
+The backend follows a layered architecture:
+
+```
+Request → FastAPI Controller (main.py)
+              ↓
+          Service Layer (civic_service.py)   ← validation + business logic
+              ↓
+          RAG Pipeline (rag_pipeline.py)     ← embeddings, retrieval, LLM chaining
+              ↓
+          FAISS Vector Store                 ← local knowledge base index
+```
+
+GrievanceGPT uses multi-step LLM chaining — department identification, document retrieval, complaint letter generation, and next-steps guidance are handled as separate chained calls rather than a single prompt.
+
+---
+
+## Contributors
+
+- [haritha2k5](https://github.com/haritha2k5)
+- [Kaniska5](https://github.com/Kaniska5)
