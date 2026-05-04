@@ -4,7 +4,6 @@ from pathlib import Path
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
 
@@ -42,32 +41,28 @@ class RAGPipeline:
         except Exception as e:
             raise RuntimeError(f"Failed to initialise RAGPipeline: {e}") from e
 
-    def _build_policy_chain(self) -> RetrievalQA:
-        retriever = self.vector_store.as_retriever(search_kwargs={"k": 5})
-        prompt_template = """
-        You are a helpful assistant that explains Indian government schemes.
-        Use the context below to answer the question clearly and simply.
+    def _build_policy_chain(self):
+        self._policy_retriever = self.vector_store.as_retriever(search_kwargs={"k": 5})
+        self._policy_prompt = PromptTemplate(
+            template="""
+            You are a helpful assistant that explains Indian government schemes.
+            Use the context below to answer the question clearly and simply.
 
-        Context: {context}
-        Question: {question}
+            Context: {context}
+            Question: {question}
 
-        Answer in plain language:
-        """
-        prompt = PromptTemplate(
-            template=prompt_template,
+            Answer in plain language:
+            """,
             input_variables=["context", "question"]
-        )
-        return RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=retriever,
-            chain_type_kwargs={"prompt": prompt}
-        )
+    )
 
     def query_policy(self, question: str) -> str:
         try:
-            result = self._policy_chain.invoke({"query": question})
-            return result["result"]
+            docs = self._policy_retriever.invoke(question)
+            context = "\n".join([d.page_content for d in docs])
+            prompt = self._policy_prompt.format(context=context, question=question)
+            result = self.llm.invoke(prompt)
+            return result.content
         except Exception as e:
             logger.error(f"query_policy failed: {e}")
             raise
