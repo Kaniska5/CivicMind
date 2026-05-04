@@ -29,19 +29,20 @@ export default function SchemeMatch() {
       const data = await matchSchemes(payload);
       setResult(data.schemes);
     } catch (e) {
-      setError(e.message);
+      console.error(e);
+      setError(e.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const fields = [
-    { name: "age",            label: "Age",            type: "number", placeholder: "e.g. 35" },
-    { name: "gender",         label: "Gender",         type: "text",   placeholder: "Male / Female / Other" },
+    { name: "age",            label: "Age",               type: "number", placeholder: "e.g. 35" },
+    { name: "gender",         label: "Gender",            type: "text",   placeholder: "Male / Female / Other" },
     { name: "annual_income",  label: "Annual Income (₹)", type: "number", placeholder: "e.g. 80000" },
-    { name: "caste_category", label: "Caste Category", type: "text",   placeholder: "General / OBC / SC / ST" },
-    { name: "state",          label: "State",          type: "text",   placeholder: "e.g. Tamil Nadu" },
-    { name: "occupation",     label: "Occupation",     type: "text",   placeholder: "e.g. Farmer / Daily Wage Worker" },
+    { name: "caste_category", label: "Caste Category",    type: "text",   placeholder: "General / OBC / SC / ST" },
+    { name: "state",          label: "State",             type: "text",   placeholder: "e.g. Tamil Nadu" },
+    { name: "occupation",     label: "Occupation",        type: "text",   placeholder: "e.g. Farmer / Daily Wage Worker" },
   ];
 
   return (
@@ -63,7 +64,7 @@ export default function SchemeMatch() {
         ))}
       </div>
       <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Matching schemes..." : "Find My Schemes"}
+        {loading ? <span className="spinner" /> : "Find My Schemes"}
       </button>
       {error  && <div className="error">{error}</div>}
       {result && (
