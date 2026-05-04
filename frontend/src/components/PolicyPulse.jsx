@@ -15,7 +15,8 @@ export default function PolicyPulse() {
       const data = await askPolicyPulse(question);
       setAnswer(data.answer);
     } catch (e) {
-      setError(e.message);
+      console.error(e);
+      setError(e.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -32,7 +33,7 @@ export default function PolicyPulse() {
         rows={4}
       />
       <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Fetching answer..." : "Ask"}
+        {loading ? <span className="spinner" /> : "Ask"}
       </button>
       {error  && <div className="error">{error}</div>}
       {answer && <div className="response"><strong>Answer:</strong><p>{answer}</p></div>}
