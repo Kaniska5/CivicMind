@@ -15,7 +15,8 @@ export default function GrievanceGPT() {
       const data = await submitGrievance(issue);
       setResult(data);
     } catch (e) {
-      setError(e.message);
+      console.error(e);
+      setError(e.message || "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -32,15 +33,15 @@ export default function GrievanceGPT() {
         rows={4}
       />
       <button onClick={handleSubmit} disabled={loading}>
-        {loading ? "Processing..." : "Submit Grievance"}
+        {loading ? <span className="spinner" /> : "Submit Grievance"}
       </button>
       {error && <div className="error">{error}</div>}
       {result && (
         <div className="response">
           <div><strong>Department:</strong><p>{result.department}</p></div>
-          <div><strong>Documents Required:</strong><p style={{whiteSpace:"pre-line"}}>{result.documents_required}</p></div>
-          <div><strong>Complaint Letter:</strong><p style={{whiteSpace:"pre-line"}}>{result.complaint_letter}</p></div>
-          <div><strong>Next Steps:</strong><p style={{whiteSpace:"pre-line"}}>{result.next_steps}</p></div>
+          <div><strong>Documents Required:</strong><p style={{ whiteSpace: "pre-line" }}>{result.documents_required}</p></div>
+          <div><strong>Complaint Letter:</strong><p style={{ whiteSpace: "pre-line" }}>{result.complaint_letter}</p></div>
+          <div><strong>Next Steps:</strong><p style={{ whiteSpace: "pre-line" }}>{result.next_steps}</p></div>
         </div>
       )}
     </div>
