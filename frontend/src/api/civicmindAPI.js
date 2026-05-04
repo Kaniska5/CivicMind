@@ -1,6 +1,14 @@
 // frontend/src/api/civicmindAPI.js
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+async function handleResponse(res) {
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail || "Something went wrong. Please try again.");
+  }
+  return res.json();
+}
 
 export async function askPolicyPulse(question) {
   const res = await fetch(`${BASE_URL}/policy-pulse`, {
@@ -8,8 +16,7 @@ export async function askPolicyPulse(question) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function submitGrievance(issue) {
@@ -18,8 +25,7 @@ export async function submitGrievance(issue) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ issue }),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return handleResponse(res);
 }
 
 export async function matchSchemes(profile) {
@@ -28,6 +34,5 @@ export async function matchSchemes(profile) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(profile),
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json();
+  return handleResponse(res);
 }
